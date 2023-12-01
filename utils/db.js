@@ -7,8 +7,6 @@ class DBClient {
     const port = process.env.DB_PORT || 27017;
     const database = process.env.DB_DATABASE || 'files_manager';
 
-    this.alive = false;
-
     const uri = `mongodb://${host}:${port}/${database}`;
 
     // Initialize MongoDB client with the specified URI and options
@@ -18,9 +16,12 @@ class DBClient {
     this.client.connect();
   }
 
+  //  returns true when the connection to MongoDB is a success otherwise, false
   isAlive() {
     return this.client.isConnected();
   }
+
+    //an asynchronous function nbUsers that returns the number of documents in the collection users
 
   async nbUsers() {
     const collection = this.client.db().collection('users');
@@ -28,6 +29,7 @@ class DBClient {
     return count;
   }
 
+  // an asynchronous function nbFiles that returns the number of documents in the collection files
   async nbFiles() {
     const collection = this.client.db().collection('files');
     const count = await collection.countDocuments();
