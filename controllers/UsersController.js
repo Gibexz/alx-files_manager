@@ -1,5 +1,7 @@
 const sha1 = require('sha1');
+const { ObjectID } = require('mongodb');
 const dbClient = require('../utils/db');
+const redisClient = require('../utils/redis');
 
 const UsersController = {
   async postNew(req, res) {
@@ -38,6 +40,31 @@ const UsersController = {
       return res.status(500).json({ error: 'Internal Server Error' });
     }
   },
+
+  async getMe(req, res) {
+    const token = req.headers['x-token'];
+
+    if (!token) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const key = `auth_${token}`;
+    const userIdFromRedis = await redisClient.get(key);
+
+    if (!userIdFromRedis) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+    const userIdforMongo = new ObjectID(userIdFromRedis);
+
+    const user = await dbClient.client.db().collection('users').findOne({ _id: userIdforMongo });
+    if (!user) {
+      // console.log('fiallled');
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    return res.status(200).json({ id: user._id, email: user.email });
+  },
+
 };
 
 module.exports = UsersController;
