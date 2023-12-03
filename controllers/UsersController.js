@@ -30,7 +30,8 @@ const UsersController = {
         .db()
         .collection('users')
         .insertOne({ email, password: hashedPassword });
-      //   const result = await dbClient.client.db().collection('users').insertOne({ email, password: hashedPassword });
+      // const result = await dbClient.client.db().collection('users')
+      // .insertOne({ email, password: hashedPassword });
 
       // Return the new user data
       const newUser = { id: insertUserResult.insertedId, email };
