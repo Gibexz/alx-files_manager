@@ -1,5 +1,4 @@
-// import mongodb from 'mongodb';
-const mongodb = require('mongodb');
+const mongodb = require('mongodb'); // import mongodb from 'mongodb';
 
 class DBClient {
   constructor() {
@@ -21,7 +20,7 @@ class DBClient {
     return this.client.isConnected();
   }
 
-    //an asynchronous function nbUsers that returns the number of documents in the collection users
+  // an asynchronous function nbUsers that returns the number of documents in the collection users
 
   async nbUsers() {
     const collection = this.client.db().collection('users');
