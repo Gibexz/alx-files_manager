@@ -1,7 +1,6 @@
 const { ObjectID } = require('mongodb');
 const { v4: uuidv4 } = require('uuid');
 const fs = require('fs');
-// const path = require('path');
 const redisClient = require('../utils/redis');
 const dbClient = require('../utils/db');
 
@@ -155,11 +154,10 @@ const FilesController = {
     if (!user) {
       return res.status(401).json({ error: 'unauthorized' });
     }
-    // console.log(user._id)
 
     const { parentId } = req.query;
     const page = parseInt(req.query.page, 10) || 0;
-    const perpage = 10;
+    const perpage = 20;
     const skip = page * perpage;
 
     if (parentId) {
