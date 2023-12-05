@@ -129,6 +129,16 @@ const FilesController = {
       return res.status(404).json({ error: 'Not found' });
     }
     return res.json(userFile);
+    // const formattedUserFile = {
+    //   id: userFile._id.toString(),
+    //   userId: userFile.userId.toString(),
+    //   name: userFile.name,
+    //   type: userFile.type,
+    //   isPublic: userFile.isPublic,
+    //   parentId: userFile.parentId,
+    // };
+
+    // return res.json(formattedUserFile);
   },
 
   async getIndex(req, res) {
@@ -160,7 +170,20 @@ const FilesController = {
       .limit(perpage)
       .toArray();
 
-    return res.json(files);
+    // return res.json(files);
+    const formattedFiles = files
+      .map(({
+        _id, userId, name, type, isPublic, parentId,
+      }) => ({
+        id: _id.toString(),
+        userId: userId.toString(),
+        name,
+        type,
+        isPublic,
+        parentId,
+      }));
+
+    return res.json(formattedFiles);
   },
 };
 
