@@ -1,44 +1,107 @@
 const { ObjectID } = require('mongodb');
-const dbClient = require('../utils/db');
+const { v4: uuidv4 } = require('uuid');
+const fs = require('fs');
+// const path = require('path');
 const redisClient = require('../utils/redis');
+const dbClient = require('../utils/db');
+
+const FOLDER_PATH = process.env.FOLDER_PATH || '/tmp/files_manager';
 
 const FilesController = {
-    async postUpload(req, res) {
-        const token = req.headers['X-Token'];
+  async postUpload(req, res) {
+    const token = req.header('X-Token');
 
-        if (!token) {
-            return res.status(401).json({ error: 'Unauthorized' });
-        }
+    if (!token) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+    // console.log(token);
+    const key = `auth_${token}`;
 
-        const key = `auth_${token}`;
+    const userIdFromRedis = await redisClient.get(key);
 
-        const userIdFromRedis = await redisClient.get(key);
+    const userIdforMongo = new ObjectID(userIdFromRedis);
+    // console.log(userIdFromRedis, userIdforMongo);
 
-        const userIdforMongo = new ObjectID(userIdFromRedis);
+    const user = await dbClient.client.db().collection('users').findOne({ _id: userIdforMongo });
 
-        const user = await dbClient.client.db().collection('users').findOne({_id: userIdforMongo});
+    if (!user) {
+      // console.log('user')
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
 
-        if (!user) {
-            return res.status(401).json({ error: 'Unauthorized' });
-        }
-        
-        const { name, type, parentId = 0, isPublic = false, data } = req.body;
+    const {
+      name, type, parentId = 0, isPublic = false, data,
+    } = req.body;
 
-        if (!name) {
-            res.status(400).json({ error: 'Missing name' });
-        }
-        // if (!type || !['folder', 'image', 'file'].includes(type))
-        if (!type || (type !== 'folder' && type !== 'image' && type !== 'file')) {
-            res.status(400).json({ error:'Missing type' });
-        }
-        if (!data && (type !== "folder")) {
-            res.status(400).json({ error:'Missing data' });
+    if (!name) {
+      return res.status(400).json({ error: 'Missing name' });
+    }
+    // if (!type || !['folder', 'image', 'file'].includes(type))
+    if (!type || (type !== 'folder' && type !== 'image' && type !== 'file')) {
+      return res.status(400).json({ error: 'Missing type' });
+    }
+    if (!data && (type !== 'folder')) {
+      return res.status(400).json({ error: 'Missing data' });
+    }
+    if (parentId !== 0) {
+      const newParentId = new ObjectID(parentId);
+      const parentIDFile = await dbClient.client.db().collection('files').findOne({ _id: newParentId });
+      if (!parentIDFile) {
+        return res.status(400).json({ error: 'Parent not found' });
+      }
+      if (parentIDFile.type !== 'folder') {
+        return res.status(400).json({ error: 'Parent is not a folder' });
+      }
+    }
 
-        }
+    let fileDocument = {
+      userId: user._id,
+      name,
+      type,
+      isPublic,
+      parentId,
+    };
 
+    if (type === 'folder') {
+      const result = await dbClient.client.db().collection('files').insertOne(fileDocument);
+      fileDocument = {
+        id: result.insertedId,
+        userId: user._id,
+        name,
+        type,
+        isPublic,
+        parentId,
+      };
+      return res.status(201).json(fileDocument);
+    }
 
+    // Handling file storage on disk
+    // const folderPath =  path.join(FOLDER_PATH, userId.toString());
+    const folderPath = FOLDER_PATH;
 
-    },
-}
+    if (!fs.existsSync(folderPath)) {
+      fs.mkdirSync(folderPath, { recursive: true });
+    }
+
+    const fileUUID = uuidv4();
+    const filePath = `${folderPath}/${fileUUID}`;
+
+    fs.writeFileSync(filePath, Buffer.from(data, 'base64'));
+
+    fileDocument.localPath = filePath;
+    const result = await dbClient.client.db().collection('files').insertOne(fileDocument);
+    fileDocument = {
+      id: result.insertedId,
+      userId: user._id,
+      name,
+      type,
+      isPublic,
+      parentId,
+    };
+    // fileDocument.id = result.insertedId;
+
+    return res.status(201).json(fileDocument);
+  },
+};
 
 module.exports = FilesController;
