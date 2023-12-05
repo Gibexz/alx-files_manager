@@ -102,6 +102,66 @@ const FilesController = {
 
     return res.status(201).json(fileDocument);
   },
+
+  async getShow(req, res) {
+    const token = req.header('X-Token');
+    if (!token) {
+      return res.status(401).json({ error: 'unauthorized' });
+    }
+
+    const key = `auth_${token}`;
+    const userIdFromRedis = await redisClient.get(key);
+
+    if (!userIdFromRedis) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+    const userIdforMongo = new ObjectID(userIdFromRedis);
+
+    const user = await dbClient.client.db().collection('users').findOne({ _id: userIdforMongo });
+    if (!user) {
+      return res.status(401).json({ error: 'unauthorized' });
+    }
+    const fileId = req.params.id;
+    const fileObjectId = new ObjectID(fileId);
+    const userFile = await dbClient.client.db().collection('files').findOne({ userId: user._id, _id: fileObjectId });
+
+    if (!userFile) {
+      return res.status(404).json({ error: 'Not found' });
+    }
+    return res.json(userFile);
+  },
+
+  async getIndex(req, res) {
+    const token = req.header('X-Token');
+    if (!token) {
+      return res.status(401).json({ error: 'unauthorized' });
+    }
+
+    const key = `auth_${token}`;
+    const userIdFromRedis = await redisClient.get(key);
+    const userIdforMongo = new ObjectID(userIdFromRedis);
+
+    const user = await dbClient.client.db().collection('users').findOne({ _id: userIdforMongo });
+    if (!user) {
+      return res.status(401).json({ error: 'unauthorized' });
+    }
+    // console.log(user._id)
+
+    const parentId = req.query.parentId || 0;
+    const page = parseInt(req.query.page, 10) || 0;
+    const perpage = 10;
+    const skip = page * perpage;
+
+    const files = await dbClient.client
+      .db()
+      .collection('files')
+      .find({ userId: user._id, parentId })
+      .skip(skip)
+      .limit(perpage)
+      .toArray();
+
+    return res.json(files);
+  },
 };
 
 module.exports = FilesController;
