@@ -301,31 +301,24 @@ const FilesController = {
 
   async getFile(req, res) {
     const token = req.header('X-Token');
-    // if (!token) {
-    //   return res.status(401).json({ error: 'Unauthorized' });
-    // }
 
     const key = `auth_${token}`;
     const userIdFromRedis = await redisClient.get(key);
     const userIdforMongo = new ObjectID(userIdFromRedis);
 
     const user = await dbClient.client.db().collection('users').findOne({ _id: userIdforMongo });
-    // if (!user) {
-    //   return res.status(401).json({ error: 'Unauthorized' });
-    // }
 
     const fileId = req.params.id;
     const fileObjectId = new ObjectID(fileId);
-    const fileDocument = await dbClient.client.db().collection('files').findOne({ userId: user._id, _id: fileObjectId });
+    const fileDocument = await dbClient.client.db().collection('files').findOne({ _id: fileObjectId });
 
     if (!fileDocument) {
       return res.status(404).json({ error: 'Not found' });
     }
 
-    if (fileDocument.isPublic === false) {
-      if (!user || (user._id !== fileDocument.userId)) {
-        return res.status(404).json({ error: 'Not found' });
-      }
+    if (!fileDocument.isPublic
+        && (!user || user._id.toString() !== fileDocument.userId.toString())) {
+      return res.status(404).json({ error: 'Not found' });
     }
 
     if (fileDocument.type === 'folder') {
@@ -340,17 +333,10 @@ const FilesController = {
     const contentType = mime.contentType(fileDocument.name);
     const content = fs.readFileSync(filePath, 'utf8');
 
-    // const formattedFileDoc = {
-    //   id: fileDocument._id.toString(),
-    //   userId: fileDocument.userId.toString(),
-    //   name: fileDocument.name,
-    //   type: fileDocument.type,
-    //   isPublic: fileDocument.isPublic,
-    //   parentId: fileDocument.parentId,
-    // };
     res.setHeader('Content-Type', contentType);
-    res.send(content);
+    return res.status(200).send(content);
   },
+
 };
 
 module.exports = FilesController;
