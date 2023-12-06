@@ -168,7 +168,7 @@ const FilesController = {
         .skip(skip)
         .limit(perpage)
         .toArray();
-    
+
       // return res.json(files);
       const formattedFiles = files
         .map(({
