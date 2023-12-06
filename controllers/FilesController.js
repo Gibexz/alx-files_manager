@@ -170,9 +170,6 @@ const FilesController = {
         .toArray();
     
       // return res.json(files);
-      if (!files) {
-        return res.status(404).json({ error: 'Not found' });
-      }
       const formattedFiles = files
         .map(({
           _id, userId, name, type, isPublic, parentId,
