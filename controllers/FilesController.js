@@ -1,6 +1,7 @@
 const { ObjectID } = require('mongodb');
 const { v4: uuidv4 } = require('uuid');
 const fs = require('fs');
+const mime = require('mime-types');
 const redisClient = require('../utils/redis');
 const dbClient = require('../utils/db');
 
@@ -296,6 +297,59 @@ const FilesController = {
     };
 
     return res.status(200).json(formattedFile);
+  },
+
+  async getFile(req, res) {
+    const token = req.header('X-Token');
+    // if (!token) {
+    //   return res.status(401).json({ error: 'Unauthorized' });
+    // }
+
+    const key = `auth_${token}`;
+    const userIdFromRedis = await redisClient.get(key);
+    const userIdforMongo = new ObjectID(userIdFromRedis);
+
+    const user = await dbClient.client.db().collection('users').findOne({ _id: userIdforMongo });
+    // if (!user) {
+    //   return res.status(401).json({ error: 'Unauthorized' });
+    // }
+
+    const fileId = req.params.id;
+    const fileObjectId = new ObjectID(fileId);
+    const fileDocument = await dbClient.client.db().collection('files').findOne({ userId: user._id, _id: fileObjectId });
+
+    if (!fileDocument) {
+      return res.status(404).json({ error: 'Not found' });
+    }
+
+    if (fileDocument.isPublic === false) {
+      if (!user || (user._id !== fileDocument.userId)) {
+        return res.status(404).json({ error: 'Not found' });
+      }
+    }
+
+    if (fileDocument.type === 'folder') {
+      return res.status(400).json({ error: "A folder doesn't have content" });
+    }
+
+    const filePath = fileDocument.localPath;
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ error: 'Not found' });
+    }
+
+    const contentType = mime.contentType(fileDocument.name);
+    const content = fs.readFileSync(filePath, 'utf8');
+
+    // const formattedFileDoc = {
+    //   id: fileDocument._id.toString(),
+    //   userId: fileDocument.userId.toString(),
+    //   name: fileDocument.name,
+    //   type: fileDocument.type,
+    //   isPublic: fileDocument.isPublic,
+    //   parentId: fileDocument.parentId,
+    // };
+    res.setHeader('Content-Type', contentType);
+    res.send(content);
   },
 };
 
