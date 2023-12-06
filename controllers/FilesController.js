@@ -168,8 +168,11 @@ const FilesController = {
         .skip(skip)
         .limit(perpage)
         .toArray();
-
+    
       // return res.json(files);
+      if (!files) {
+        return res.status(404).json({ error: 'Not found' });
+      }
       const formattedFiles = files
         .map(({
           _id, userId, name, type, isPublic, parentId,
@@ -237,8 +240,7 @@ const FilesController = {
         { $set: { isPublic: true } },
         { returnOriginal: false },
       );
-    // const newfile = await dbClient.client.db()
-    // .collection('files').findOne({ userId: user._id, _id: fileObjectId });
+
     if (!updatedFile) {
       return res.status(404).json({ error: 'Not found' });
     }
